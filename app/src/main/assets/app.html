@@ -1,0 +1,106 @@
+<!doctype html><html lang="fa" dir="rtl"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<style>
+:root{--bg:#0f1420;--c:#182033;--c2:#212b43;--t:#e8ecf6;--m:#8b97b3;--a:#4f8cff;--g:#2ecc9a;--r:#ff5d6c}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;background:var(--bg);color:var(--t);font:14px/1.7 Tahoma,sans-serif;padding-bottom:70px}
+header{position:sticky;top:0;background:var(--c);padding:12px 14px;display:flex;align-items:center;gap:10px;z-index:5;box-shadow:0 2px 10px #0005}
+header b{flex:1;font-size:16px}header button{background:none;border:0;color:var(--t);font-size:20px}
+main{padding:12px}
+.card{background:var(--c);border-radius:14px;padding:12px;margin-bottom:10px}
+.row{display:flex;justify-content:space-between;gap:8px;align-items:center}
+.m{color:var(--m);font-size:12px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.k{background:var(--c);border-radius:14px;padding:12px}.k b{display:block;font-size:18px;margin-top:4px}
+input,select,textarea{width:100%;background:var(--c2);border:1px solid #2d3956;color:var(--t);border-radius:10px;padding:10px;margin:4px 0;font:inherit}
+.btn{background:var(--a);color:#fff;border:0;border-radius:10px;padding:10px 14px;font:inherit;width:100%;margin:4px 0}
+.btn.s{background:var(--c2);width:auto}.btn.d{background:var(--r);width:auto}
+nav{position:fixed;bottom:0;right:0;left:0;background:var(--c);display:flex;box-shadow:0 -2px 10px #0006}
+nav a{flex:1;text-align:center;padding:9px 0;color:var(--m);font-size:11px}nav a.on{color:var(--a)}nav a i{display:block;font-style:normal;font-size:19px}
+.badge{background:var(--c2);border-radius:20px;padding:2px 10px;font-size:12px}
+.g{color:var(--g)}.r{color:var(--r)}
+#toast{position:fixed;top:60px;left:12px;right:12px;background:var(--a);padding:10px;border-radius:10px;display:none;z-index:9;text-align:center}
+.it{display:grid;grid-template-columns:1fr 60px 90px;gap:4px}
+.login{max-width:380px;margin:12vh auto;padding:16px}
+</style></head><body>
+<div id="toast"></div><div id="app"></div>
+<script>
+var L=localStorage,S={url:L.rcUrl||'',tok:L.rcTok||'',boot:null,tab:'home'},$=function(i){return document.getElementById(i)};
+function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
+function n(v){return Number(v||0).toLocaleString('fa-IR')}
+function toast(t,e){var x=$('toast');x.textContent=t;x.style.background=e?'#ff5d6c':'#4f8cff';x.style.display='block';setTimeout(function(){x.style.display='none'},2800)}
+async function api(p,o){o=o||{};var h={'Content-Type':'application/json'};if(S.tok)h['X-RC-Token']=S.tok;
+ var u=S.url.replace(/\/+$/,'')+'/wp-json/ruvinco/v1'+p,k='c'+u;
+ try{var r=await fetch(u,{method:o.m||'GET',headers:h,body:o.b?JSON.stringify(o.b):undefined});var j=await r.json();
+  if(r.status==401&&S.tok&&p!='/login'&&p!='/logout'){logout();throw{message:j.message}}
+  if(!r.ok)throw{message:j.message||'خطا'};
+  if(!o.m)try{L[k]=JSON.stringify(j)}catch(e){}return j}
+ catch(e){if(!o.m&&L[k]&&e instanceof TypeError){toast('آفلاین - نسخه ذخیره‌شده');return JSON.parse(L[k])}throw e}}
+function logout(){var t=S.tok;if(t)api('/logout',{m:'POST'}).catch(function(){}).then(function(){S.tok='';delete L.rcTok;login()});else login()}
+function login(msg){$('app').innerHTML='<div class="login card"><h2>ورود به روینکو</h2><div class="m">'+esc(msg||'')+'</div><input id="u0" placeholder="آدرس سایت (https://...)" value="'+esc(S.url)+'" dir="ltr"><input id="u1" placeholder="نام کاربری" dir="ltr" autocapitalize="none"><input id="u2" type="password" placeholder="رمز عبور" dir="ltr"><button class="btn" onclick="doLogin()">ورود</button></div>'}
+async function doLogin(){var u=$('u0').value.trim();if(u&&!/^https?:\/\//.test(u))u='https://'+u;S.url=u;L.rcUrl=u;
+ try{var j=await api('/login',{m:'POST',b:{username:$('u1').value,password:$('u2').value}});S.tok=j.token;L.rcTok=j.token;start()}catch(e){toast(e.message||'خطا در اتصال',1)}}
+async function start(){try{S.boot=await api('/bootstrap');S.boot.prods=[];shell();api('/products').then(function(p){S.boot.prods=p}).catch(function(){});go('home')}catch(e){if(S.tok)toast(e.message||'خطا',1);else login()}}
+function isM(){return S.boot&&S.boot.role=='manager'}
+function has(k){return isM()||(S.boot&&(S.boot.perms||[]).indexOf(k)>-1)}
+function shell(){var t=[['home','🏠','خانه'],['orders','📦','سفارش‌ها'],['custs','👥','مشتریان'],['invs','🧾','فاکتورها']];if(has('debts')||has('reports')||has('expenses'))t.push(['fin','💰','مالی']);
+ $('app').innerHTML='<header><b id="ttl"></b><button onclick="go(S.tab)">⟳</button><button onclick="if(confirm(\'خروج؟\'))logout()">⎋</button></header><main id="v"></main><nav>'+t.map(function(x){return '<a id="t_'+x[0]+'" onclick="go(\''+x[0]+'\')"><i>'+x[1]+'</i>'+x[2]+'</a>'}).join('')+'</nav>'}
+function go(t,a){S.tab=t;document.querySelectorAll('nav a').forEach(function(e){e.className=''});var e=$('t_'+t);if(e)e.className='on';V[t](a)}
+function set(t,h){$('ttl').textContent=t;$('v').innerHTML=h}
+function load(){$('v').innerHTML='<div class="m" style="text-align:center;padding:30px">در حال بارگذاری…</div>'}
+function fail(e){toast(e.message||'خطا',1)}
+function stN(k){var s=S.boot.statuses[k];return s&&s.label?s.label:(s||k)}
+var V={
+home:async function(){load();try{var d=await api('/dashboard');var h='<div class="grid"><div class="k"><span class="m">سفارش‌ها</span><b>'+n(d.orders)+'</b></div><div class="k"><span class="m">مشتریان</span><b>'+n(d.customers)+'</b></div>';
+ if(d.month_sales!=null)h+='<div class="k"><span class="m">فروش این ماه</span><b>'+n(d.month_sales)+'</b></div><div class="k"><span class="m">دریافتی ماه</span><b class="g">'+n(d.month_recv)+'</b></div><div class="k"><span class="m">هزینه ماه</span><b class="r">'+n(d.month_exp)+'</b></div>';
+ h+='</div><h4>وضعیت سفارش‌ها</h4>';for(var k in d.by_status)h+='<div class="card row"><span>'+esc(stN(k))+'</span><b>'+n(d.by_status[k].c)+'</b></div>';
+ set('سلام '+S.boot.name,h)}catch(e){fail(e)}},
+orders:async function(a){a=a||{};load();try{var r=await api('/orders?q='+encodeURIComponent(a.q||'')+'&status='+(a.st||''));
+ var h='<div class="row"><input id="q" placeholder="جستجو شماره/عنوان" value="'+esc(a.q||'')+'"><select id="st" style="width:110px"><option value="">همه</option>'+Object.keys(S.boot.statuses).map(function(k){return '<option value="'+k+'"'+(a.st==k?' selected':'')+'>'+esc(stN(k))+'</option>'}).join('')+'</select></div><button class="btn s" onclick="go(\'orders\',{q:$(\'q\').value,st:$(\'st\').value})">جستجو</button> <button class="btn" onclick="orderForm()">+ ثبت سفارش</button>';
+ r.forEach(function(o){h+='<div class="card" onclick="orderView('+o.id+')"><div class="row"><b>#'+o.id+' '+esc(o.title)+'</b><span class="badge">'+esc(stN(o.status))+'</span></div><div class="m">'+esc(o.customer)+' · '+n(o.total)+' تومان</div></div>'});
+ set('سفارش‌ها',h)}catch(e){fail(e)}},
+custs:async function(a){a=a||{};load();try{var r=await api('/customers?q='+encodeURIComponent(a.q||''));
+ var h='<input id="q" placeholder="نام یا موبایل" value="'+esc(a.q||'')+'"><button class="btn s" onclick="go(\'custs\',{q:$(\'q\').value})">جستجو</button> <button class="btn" onclick="custForm()">+ مشتری جدید</button>';
+ r.forEach(function(c){h+='<div class="card" onclick="custView('+c.id+')"><b>'+esc(c.name)+'</b><div class="m">'+esc(c.mobile)+' '+esc(c.city)+'</div></div>'});set('مشتریان',h)}catch(e){fail(e)}},
+invs:async function(){load();try{var r=await api('/invoices');var h='<button class="btn" onclick="invForm()">+ فاکتور جدید</button>';
+ r.forEach(function(v){h+='<div class="card" onclick="invView('+v.id+')"><div class="row"><b>'+esc(v.label)+'</b><span class="'+(v.left>0?'r':'g')+'">'+(v.left>0?'مانده '+n(v.left):'تسویه')+'</span></div><div class="m">'+esc(v.customer)+' · '+esc(v.date_fa)+' · '+n(v.total)+'</div></div>'});set('فاکتورها',h)}catch(e){fail(e)}},
+fin:async function(a){a=a||{};load();try{var f=a.f||'',t=a.t||'',d=await api('/debts'),r=await api('/reports?from='+f+'&to='+t),ex=await api('/expenses');
+ var h='<div class="card"><div class="m">بازه گزارش (میلادی YYYY-MM-DD)</div><input id="f" dir="ltr" placeholder="از" value="'+esc(r.from)+'"><input id="t" dir="ltr" placeholder="تا" value="'+esc(r.to)+'"><button class="btn" onclick="go(\'fin\',{f:$(\'f\').value,t:$(\'t\').value})">نمایش</button></div><div class="grid">'+
+ [['فروش',r.sales],['دریافتی',r.received],['هزینه',r.expenses],['کمیسیون',r.commission],['مالیات',r.tax],['سود نقدی',r.profit]].map(function(x){return '<div class="k"><span class="m">'+x[0]+'</span><b>'+n(x[1])+'</b></div>'}).join('')+'</div>';
+ h+='<h4>بدهکاران (جمع '+n(d.total)+')</h4>';d.customers.forEach(function(c){h+='<div class="card row" onclick="custView('+c.customer_id+')"><span>'+esc(c.customer)+'</span><b class="r">'+n(c.left)+'</b></div>'});
+ h+='<h4>هزینه‌ها</h4><button class="btn" onclick="expForm()">+ ثبت هزینه</button>';ex.forEach(function(x){h+='<div class="card row"><span>'+esc(x.title)+'<div class="m">'+esc(x.exp_date)+' '+esc(x.category)+'</div></span><span>'+n(x.amount)+' <a class="r" onclick="delX(\'/expenses/'+x.id+'\',\'fin\')">✕</a></span></div>'});
+ set('مالی',h)}catch(e){fail(e)}}};
+async function delX(p,back){if(!confirm('حذف شود؟'))return;try{await api(p,{m:'DELETE'});toast('حذف شد');go(back)}catch(e){fail(e)}}
+async function orderView(id){load();try{var o=await api('/orders/'+id);var h='<div class="card"><b>'+esc(o.title)+'</b><div class="m">'+esc(o.customer)+' · '+n(o.total)+' تومان</div><div>'+esc(o.notes||'')+'</div></div>';
+ (o.items||[]).forEach(function(i){h+='<div class="card row"><span>'+esc(i.desc)+' ×'+i.qty+'</span><b>'+n(i.price*i.qty)+'</b></div>'});
+ h+='<select id="ns">'+Object.keys(S.boot.statuses).map(function(k){return '<option value="'+k+'"'+(o.status==k?' selected':'')+'>'+esc(stN(k))+'</option>'}).join('')+'</select><button class="btn" onclick="setSt('+id+')">تغییر وضعیت</button><button class="btn s" onclick="go(\'orders\')">بازگشت</button>';set('سفارش #'+id,h)}catch(e){fail(e)}}
+async function setSt(id){try{await api('/orders/'+id+'/status',{m:'POST',b:{status:$('ns').value}});toast('ثبت شد');orderView(id)}catch(e){fail(e)}}
+async function custView(id){load();try{var c=await api('/customers/'+id);var h='<div class="card"><b>'+esc(c.name)+'</b><div class="m">'+esc(c.mobile)+' · '+esc(c.company)+' '+esc(c.city)+'<br>'+esc(c.address)+'</div><a class="btn s" href="tel:'+esc(c.mobile)+'">📞 تماس</a></div><h4>سفارش‌ها</h4>';
+ c.orders.forEach(function(o){h+='<div class="card row" onclick="orderView('+o.id+')"><span>#'+o.id+' '+esc(o.title)+'</span><span class="badge">'+esc(stN(o.status))+'</span></div>'});
+ h+='<h4>فاکتورها</h4>';c.invoices.forEach(function(v){h+='<div class="card row" onclick="invView('+v.id+')"><span>'+esc(v.label)+'</span><span class="'+(v.left>0?'r':'g')+'">'+n(v.left)+'</span></div>'});set('مشتری',h)}catch(e){fail(e)}}
+function custForm(){set('مشتری جدید','<input id="cn" placeholder="نام"><input id="cm" placeholder="موبایل" inputmode="tel"><input id="cc" placeholder="شهر"><input id="ca" placeholder="آدرس"><button class="btn" onclick="saveCust()">ذخیره</button>')}
+async function saveCust(){try{var r=await api('/customers',{m:'POST',b:{name:$('cn').value,mobile:$('cm').value,city:$('cc').value,address:$('ca').value}});alert(r.password?'ساخته شد. رمز پنل مشتری: '+r.password:'مشتری ثبت/یافت شد');custView(r.customer.id)}catch(e){fail(e)}}
+// item rows builder (orders + invoices)
+var PR=[];
+function rowsHtml(){return '<div id="rows"></div><button class="btn s" onclick="addRow()">+ ردیف</button><datalist id="pl">'+S.boot.prods.map(function(p,i){return '<option value="'+esc(p.name||p.title||'')+'">'}).join('')+'</datalist>'}
+function addRow(){var d=document.createElement('div');d.className='it';d.innerHTML='<input class="d" list="pl" placeholder="شرح کالا" oninput="pick(this)"><input class="q" type="number" value="1"><input class="p" type="number" placeholder="قیمت">';$('rows').appendChild(d)}
+function pick(e){var p=S.boot.prods.filter(function(x){return (x.name||x.title)==e.value})[0];if(p){e.dataset.pid=p.id;var pr=e.parentNode.querySelector('.p');pr.value=p.price||pr.value}}
+function getRows(){return[].map.call(document.querySelectorAll('#rows .it'),function(r){return{desc:r.querySelector('.d').value,qty:r.querySelector('.q').value,price:r.querySelector('.p').value,pid:r.querySelector('.d').dataset.pid||0}})}
+async function custPick(){var q=$('cq').value;var r=await api('/customers?q='+encodeURIComponent(q));$('cs').innerHTML=r.map(function(c){return '<option value="'+c.id+'">'+esc(c.name)+' - '+esc(c.mobile)+'</option>'}).join('')}
+function custPicker(){return '<div class="row"><input id="cq" placeholder="جستجوی مشتری"><button class="btn s" onclick="custPick()">یافتن</button></div><select id="cs"></select>'}
+function newCust(){return '<div class="row"><input id="nn" placeholder="یا مشتری جدید: نام"><input id="nm" placeholder="موبایل" type="tel"></div>'}
+function orderForm(){set('سفارش جدید',custPicker()+newCust()+'<input id="ot" placeholder="عنوان">'+rowsHtml()+'<select id="vs"><option value="0">بدون ویزیتور</option></select><input id="cd" placeholder="کارت پرداخت (اختیاری)"><select id="mk"><option value="">فقط سفارش</option><option value="proforma">سفارش + پیش‌فاکتور</option><option value="invoice">سفارش + فاکتور</option></select><textarea id="on" placeholder="توضیحات"></textarea><button class="btn" onclick="saveOrder()">ثبت سفارش</button>');addRow();custPick();if(has('orders'))api('/visitors').then(function(v){$('vs').innerHTML+=v.map(function(x){return '<option value="'+x.id+'">'+esc(x.name)+'</option>'}).join('')}).catch(function(){})}
+var busy=0;
+async function saveOrder(){if(busy)return;busy=1;try{var nm=$('nm').value.trim();var r=await api('/orders',{m:'POST',b:{customer_id:nm?0:$('cs').value,new_name:$('nn').value,new_mobile:nm,title:$('ot').value,notes:$('on').value,visitor_id:$('vs').value,card:$('cd').value,make_invoice:$('mk').value,items:getRows()}});toast('ثبت شد');if(r.invoice_id)invView(r.invoice_id);else orderView(r.id)}catch(e){fail(e)}busy=0}
+function invForm(){set('فاکتور جدید',custPicker()+newCust()+'<select id="ty"><option value="invoice">فاکتور</option><option value="proforma">پیش‌فاکتور</option></select>'+rowsHtml()+'<input id="dc" type="number" placeholder="تخفیف"><input id="tx" type="number" placeholder="مالیات %" value="'+(S.boot.tax||0)+'"><input id="dp" type="number" placeholder="بیعانه"><button class="btn" onclick="saveInv()">ثبت</button>');addRow();custPick()}
+async function saveInv(){try{var r=await api('/invoices',{m:'POST',b:{customer_id:$('nm').value.trim()?0:$('cs').value,new_name:$('nn').value,new_mobile:$('nm').value.trim(),type:$('ty').value,items:getRows(),discount:$('dc').value,tax_percent:$('tx').value,deposit:$('dp').value}});toast('ثبت شد');invView(r.id)}catch(e){fail(e)}}
+async function invView(id){load();try{var v=await api('/invoices/'+id);var h='<div class="card"><b>'+esc(v.label)+'</b><div class="m">'+esc(v.customer)+' · '+esc(v.date_fa)+'</div><div class="row"><span>جمع کل</span><b>'+n(v.total)+'</b></div><div class="row"><span>پرداخت‌شده</span><b class="g">'+n(v.paid)+'</b></div><div class="row"><span>مانده</span><b class="r">'+n(v.left)+'</b></div></div>';
+ (v.items||[]).forEach(function(i){h+='<div class="card row"><span>'+esc(i.desc)+' ×'+i.qty+'</span><b>'+n(i.price*i.qty)+'</b></div>'});
+ h+='<h4>پرداخت‌ها</h4>';v.payments.forEach(function(p){h+='<div class="card row"><span>'+esc(p.pay_date)+' '+esc(p.method)+'</span><span>'+n(p.amount)+(has('delete')?' <a class="r" onclick="delX(\'/payments/'+p.id+'\',\'invs\')">✕</a>':'')+'</span></div>'});
+ h+='<input id="pa" type="number" placeholder="مبلغ پرداخت"><input id="pm" placeholder="روش (نقد/کارت…)"><button class="btn" onclick="pay('+id+')">ثبت پرداخت</button><a class="btn s" style="display:block;text-align:center;text-decoration:none;color:var(--t)" href="'+esc(v.print_url)+'" target="_blank">🖨 چاپ / PDF</a>';
+ if(has('delete'))h+='<button class="btn d" onclick="delX(\'/invoices/'+id+'\',\'invs\')">حذف فاکتور</button>';set('فاکتور',h)}catch(e){fail(e)}}
+async function pay(id){try{await api('/invoices/'+id+'/pay',{m:'POST',b:{amount:$('pa').value,method:$('pm').value}});toast('ثبت شد');invView(id)}catch(e){fail(e)}}
+function expForm(){set('هزینه جدید','<input id="et" placeholder="عنوان"><input id="ea" type="number" placeholder="مبلغ"><input id="ec" placeholder="دسته"><button class="btn" onclick="saveExp()">ثبت</button>')}
+async function saveExp(){try{await api('/expenses',{m:'POST',b:{title:$('et').value,amount:$('ea').value,category:$('ec').value}});toast('ثبت شد');go('fin')}catch(e){fail(e)}}
+if(S.tok&&S.url)start();else login();
+</script></body></html>
